@@ -5,6 +5,7 @@ defaults:
     shell: bash
 
 on:
+  workflow_dispatch:
   push:
     tags:
       - '*'
@@ -33,12 +34,6 @@ jobs:
             bindgen: false
             gateway: true
 
-          - host: ubuntu-22.04-arm
-            architecture: aarch64
-            target: aarch64-unknown-linux-gnu
-            toolchain: 1.98.0
-            bindgen: false
-            gateway: true
 
     steps:
       - name: Checkout code
@@ -95,11 +90,11 @@ jobs:
             cp target/${{ matrix.settings.target }}/release/redirect_pkg_handler output/redirect_pkg_handler-${{ matrix.settings.architecture }}
 
       - name: Export OpenAPI spec
-        if: matrix.settings.architecture == 'aarch64'
+        if: matrix.settings.architecture == 'x86_64'
         run: cargo test --locked -p landscape-webserver export_openapi_json -- --nocapture
 
       - name: Upload OpenAPI spec
-        if: matrix.settings.architecture == 'aarch64'
+        if: matrix.settings.architecture == 'x86_64'
         uses: actions/upload-artifact@v7
         with:
           name: openapi-spec
