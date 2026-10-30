@@ -1,0 +1,29 @@
+name: Temp Focused Tests
+
+on:
+  push:
+    branches:
+      - ci-test
+
+jobs:
+  focused-tests:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install build toolchain
+        run: ./scripts/setup_ubuntu_build.sh
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.98.0
+
+      - name: eBPF error summarizer tests
+        run: cargo test --locked -p landscape-ebpf --lib bpf_error
+
+      - name: wan_link retry tests
+        run: cargo test --locked -p landscape --lib wan_link_service
+
+      - name: ddns tests (with the AAAA fix)
+        run: cargo test --locked -p landscape --lib ddns
