@@ -1,0 +1,69 @@
+name: Temp AMD64 Dynamic Build
+
+on:
+  push:
+    branches:
+      - ci-build
+
+jobs:
+  build-amd64-dynamic:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Install build toolchain
+        run: ./scripts/setup_ubuntu_build.sh
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.98.0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Build webui + webserver (dynamic gnu, same as release)
+        run: bash ./build.sh -t x86_64
+
+      - name: Build redirect_pkg_handler
+        run: |
+          cargo build --locked --release --package landscape-ebpf --bin redirect_pkg_handler
+          cp target/release/redirect_pkg_handler output/
+
+      - name: Show artifact info
+        run: |
+          file output/landscape-webserver-x86_64
+          ldd output/landscape-webserver-x86_64 | head -20
+          du -sh output/static
+          find output -maxdepth 1 -type f -printf '%f %s\n'
+
+      - name: Package
+        run: |
+          cat > output/README-RUN.md <<'EOF'
+          # landscape (PR #254 build, amd64 dynamic/glibc)
+
+          Built from commit 9701c0b2 + PR #254 on Ubuntu 24.04, links glibc
+          dynamically (needs glibc >= 2.39).
+
+          Run from this directory:
+
+              chmod +x landscape-webserver-x86_64 redirect_pkg_handler
+              ./landscape-webserver-x86_64 --web ./static
+
+          Default port: 6300 (http), 6443 (https). Run as root for eBPF.
+          `--web ./static` points the webserver at the bundled frontend; drop it
+          to use the default path under the landscape home directory.
+          EOF
+          tar -czf landscape-pr254-amd64-dynamic.tar.gz -C output README-RUN.md landscape-webserver-x86_64 redirect_pkg_handler static
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: landscape-pr254-amd64-dynamic
+          path: landscape-pr254-amd64-dynamic.tar.gz
